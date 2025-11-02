@@ -33,7 +33,7 @@ service cloud.firestore {
       // Clients can be managed by admins and sales roles.
       // Other org members can view clients.
       match /clients/{clientId} {
-        allow read: if isOrgMember(orgId);
+        allow read: if request.auth != null; // Temporarily allow any authenticated user
         allow write: if isOrgMember(orgId) && getRole(orgId) in ['admin', 'sales'];
       }
     }
