@@ -1,34 +1,92 @@
+'use client';
+
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { MoreHorizontal, PlusCircle } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Search } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useCollection } from "@/firebase";
+import { Loader2 } from "lucide-react";
+import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
-const clients = [
-    { id: 1, name: "Client A", industry: "Manufacturing", mrr: "₹1,20,000", contract: "2024-04-01 to 2025-04-01", tags: ["priority"] },
-    { id: 2, name: "Client B", industry: "Healthcare", mrr: "₹80,000", contract: "2023-08-01 to 2026-08-01", tags: ["onboarding"] },
-    { id: 3, name: "Tech Solutions Inc.", industry: "SaaS", mrr: "₹2,50,000", contract: "2024-01-15 to 2025-01-15", tags: [] },
-    { id: 4, name: "Innovate Co", industry: "E-commerce", mrr: "₹1,50,000", contract: "2023-11-01 to 2024-11-01", tags: ["high-touch"] },
-    { id: 5, name: "Global Exports", industry: "Logistics", mrr: "₹95,000", contract: "2024-06-01 to 2025-06-01", tags: [] },
-    { id: 6, name: "HealthFirst Clinic", industry: "Healthcare", mrr: "₹1,10,000", contract: "2022-05-20 to 2025-05-20", tags: ["priority"] },
-];
+const AddClientForm = () => (
+    <div className="grid gap-4 py-4">
+        <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="name" className="text-right">Name</Label>
+            <Input id="name" placeholder="Acme Inc." className="col-span-3" />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="industry" className="text-right">Industry</Label>
+            <Input id="industry" placeholder="SaaS" className="col-span-3" />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="mrr" className="text-right">MRR (₹)</Label>
+            <Input id="mrr" type="number" placeholder="150000" className="col-span-3" />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="contact-name" className="text-right">Contact Name</Label>
+            <Input id="contact-name" placeholder="John Doe" className="col-span-3" />
+        </div>
+         <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="contact-email" className="text-right">Contact Email</Label>
+            <Input id="contact-email" type="email" placeholder="john@acme.com" className="col-span-3" />
+        </div>
+    </div>
+)
+
 
 export default function ClientsPage() {
+    // Note: To connect to a real collection, update the 'orgId' to a valid one.
+    // const { data: clients, loading, error } = useCollection('organizations/test-org/clients');
+    const { data: clients, loading, error } = useCollection('clients'); // Using top-level for now.
+
+    const clientsMock = [
+        { id: "1", name: "Innovate Co", industry: "Tech", mrr: 250000, contractEnd: "2025-01-15", primaryContact: { name: "Jane Doe" } },
+        { id: "2", name: "HealthWell", industry: "Healthcare", mrr: 120000, contractEnd: "2024-11-30", primaryContact: { name: "John Smith" } },
+        { id: "3", name: "RetailRight", industry: "E-commerce", mrr: 85000, contractEnd: "2025-06-01", primaryContact: { name: "Peter Jones" } },
+    ];
+
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h1 className="text-3xl font-bold tracking-tight">Clients</h1>
-                <Button>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Client
-                </Button>
+                <Sheet>
+                    <SheetTrigger asChild>
+                        <Button>
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Add Client
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent>
+                        <SheetHeader>
+                            <SheetTitle>Add a New Client</SheetTitle>
+                            <SheetDescription>Fill in the details below to add a new client to your roster.</SheetDescription>
+                        </SheetHeader>
+                        <AddClientForm />
+                        <SheetFooter>
+                            <Button type="submit">Save Client</Button>
+                        </SheetFooter>
+                    </SheetContent>
+                </Sheet>
             </div>
             
-            <Card>
+            <Card className="shadow-md rounded-2xl">
                 <CardHeader>
-                    <CardTitle>Client Roster</CardTitle>
-                    <CardDescription>Manage your clients and their contracts.</CardDescription>
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <CardTitle>Client Roster</CardTitle>
+                            <CardDescription>Manage your clients and their contracts.</CardDescription>
+                        </div>
+                        <div className="relative">
+                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                           <Input placeholder="Search clients..." className="pl-10 w-64" />
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -37,23 +95,31 @@ export default function ClientsPage() {
                                 <TableHead>Client Name</TableHead>
                                 <TableHead className="hidden md:table-cell">Industry</TableHead>
                                 <TableHead>MRR</TableHead>
-                                <TableHead className="hidden lg:table-cell">Contract Period</TableHead>
-                                <TableHead>Tags</TableHead>
+                                <TableHead className="hidden lg:table-cell">Contract End</TableHead>
+                                <TableHead>Primary Contact</TableHead>
                                 <TableHead><span className="sr-only">Actions</span></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {clients.map(client => (
+                            {loading && (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center">
+                                        <div className="flex justify-center items-center p-8">
+                                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                            {error && (
+                                <TableRow><TableCell colSpan={6} className="text-center text-destructive">Error loading clients.</TableCell></TableRow>
+                            )}
+                            {!loading && clientsMock.map(client => (
                                 <TableRow key={client.id}>
                                     <TableCell className="font-medium">{client.name}</TableCell>
                                     <TableCell className="hidden md:table-cell">{client.industry}</TableCell>
-                                    <TableCell>{client.mrr}</TableCell>
-                                    <TableCell className="hidden lg:table-cell">{client.contract}</TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-wrap gap-1">
-                                            {client.tags.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
-                                        </div>
-                                    </TableCell>
+                                    <TableCell>₹{client.mrr.toLocaleString('en-IN')}</TableCell>
+                                    <TableCell className="hidden lg:table-cell">{client.contractEnd}</TableCell>
+                                    <TableCell>{client.primaryContact.name}</TableCell>
                                     <TableCell>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
@@ -64,8 +130,8 @@ export default function ClientsPage() {
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                <DropdownMenuItem>Edit</DropdownMenuItem>
                                                 <DropdownMenuItem>View Details</DropdownMenuItem>
+                                                <DropdownMenuItem>Edit</DropdownMenuItem>
                                                 <DropdownMenuSeparator />
                                                 <DropdownMenuItem className="text-destructive focus:text-destructive-foreground focus:bg-destructive">Delete</DropdownMenuItem>
                                             </DropdownMenuContent>
