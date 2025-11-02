@@ -15,7 +15,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useAuth, useCollection, useFirestore } from "@/firebase";
 import { addDoc, collection } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useContext } from "react";
+import { OrgContext } from "../layout";
+
 
 const clientSchema = z.object({
     name: z.string().min(1, "Client name is required"),
@@ -30,6 +32,7 @@ type ClientFormData = z.infer<typeof clientSchema>;
 
 const AddClientForm = ({ onSave }: { onSave: () => void }) => {
     const { db } = useFirestore();
+    const { orgId } = useContext(OrgContext);
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -45,7 +48,10 @@ const AddClientForm = ({ onSave }: { onSave: () => void }) => {
     });
 
     async function onSubmit(data: ClientFormData) {
-        if (!db) return;
+        if (!db || !orgId) {
+            toast({ variant: "destructive", title: "Error", description: "Organization not found."});
+            return;
+        };
         setIsSubmitting(true);
 
         const newClient = {
@@ -60,7 +66,7 @@ const AddClientForm = ({ onSave }: { onSave: () => void }) => {
         };
 
         try {
-            await addDoc(collection(db, 'organizations/test-org/clients'), newClient);
+            await addDoc(collection(db, `organizations/${orgId}/clients`), newClient);
             toast({
                 title: "Client Added",
                 description: `${data.name} has been successfully added.`,
@@ -89,7 +95,7 @@ const AddClientForm = ({ onSave }: { onSave: () => void }) => {
                         <FormControl>
                             <Input placeholder="Acme Inc." className="col-span-3" {...field} />
                         </FormControl>
-                        <FormMessage className="col-span-4" />
+                        <FormMessage className="col-span-4 text-right" />
                     </FormItem>
                 )} />
                  <FormField control={form.control} name="industry" render={({ field }) => (
@@ -98,7 +104,7 @@ const AddClientForm = ({ onSave }: { onSave: () => void }) => {
                         <FormControl>
                             <Input placeholder="SaaS" className="col-span-3" {...field} />
                         </FormControl>
-                         <FormMessage className="col-span-4" />
+                         <FormMessage className="col-span-4 text-right" />
                     </FormItem>
                 )} />
                  <FormField control={form.control} name="mrr" render={({ field }) => (
@@ -107,7 +113,7 @@ const AddClientForm = ({ onSave }: { onSave: () => void }) => {
                         <FormControl>
                             <Input type="number" placeholder="150000" className="col-span-3" {...field} />
                         </FormControl>
-                         <FormMessage className="col-span-4" />
+                         <FormMessage className="col-span-4 text-right" />
                     </FormItem>
                 )} />
                  <FormField control={form.control} name="contactName" render={({ field }) => (
@@ -116,7 +122,7 @@ const AddClientForm = ({ onSave }: { onSave: () => void }) => {
                         <FormControl>
                             <Input placeholder="John Doe" className="col-span-3" {...field} />
                         </FormControl>
-                         <FormMessage className="col-span-4" />
+                         <FormMessage className="col-span-4 text-right" />
                     </FormItem>
                 )} />
                  <FormField control={form.control} name="contactEmail" render={({ field }) => (
@@ -125,7 +131,7 @@ const AddClientForm = ({ onSave }: { onSave: () => void }) => {
                         <FormControl>
                             <Input type="email" placeholder="john@acme.com" className="col-span-3" {...field} />
                         </FormControl>
-                         <FormMessage className="col-span-4" />
+                         <FormMessage className="col-span-4 text-right" />
                     </FormItem>
                 )} />
                 <SheetFooter className="mt-4">
@@ -141,9 +147,15 @@ const AddClientForm = ({ onSave }: { onSave: () => void }) => {
 
 
 export default function ClientsPage() {
-    // Note: Using a hardcoded 'test-org' for now. This should be dynamic in a real app.
-    const { data: clients, loading, error } = useCollection('organizations/test-org/clients');
+    const { orgId } = useContext(OrgContext);
+    const { data: clients, loading, error } = useCollection(orgId ? `organizations/${orgId}/clients` : undefined);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
+    
+    // We can't render the page without an orgId
+    if (!orgId && !loading) {
+        return <div className="text-destructive">Error: No organization ID found.</div>
+    }
+
 
     return (
         <div className="space-y-6">

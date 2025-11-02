@@ -33,7 +33,7 @@ export default function SignUpPage() {
     setLoading(true);
     try {
       await createUserWithEmailAndPassword(auth, email, password);
-      router.push('/dashboard');
+      router.push('/onboarding');
     } catch (error: any) {
       toast({
         variant: "destructive",

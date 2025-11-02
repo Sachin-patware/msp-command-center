@@ -17,7 +17,7 @@ interface UseCollectionOptions {
 }
 
 export function useCollection<T = DocumentData>(
-  collectionName: string,
+  collectionNameOrPath: string | undefined,
   options?: UseCollectionOptions
 ) {
   const { db } = useFirestore();
@@ -26,16 +26,18 @@ export function useCollection<T = DocumentData>(
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (!db) {
+    if (!db || !collectionNameOrPath) {
       setLoading(false);
+      // It's not an error if the path is not ready yet, so we just return an empty array.
+      setData([]);
       return;
     }
 
     let q: Query<DocumentData>;
     if (options?.constraints) {
-      q = query(collection(db, collectionName), ...options.constraints);
+      q = query(collection(db, collectionNameOrPath), ...options.constraints);
     } else {
-      q = query(collection(db, collectionName));
+      q = query(collection(db, collectionNameOrPath));
     }
     
     const unsubscribe = onSnapshot(
@@ -49,13 +51,14 @@ export function useCollection<T = DocumentData>(
         setLoading(false);
       },
       (err) => {
+        console.error(`Error fetching collection ${collectionNameOrPath}:`, err)
         setError(err);
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [db, collectionName, options?.constraints]);
+  }, [db, collectionNameOrPath, options?.constraints]);
 
   return { data, loading, error };
 }
