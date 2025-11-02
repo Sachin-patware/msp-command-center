@@ -24,10 +24,9 @@ service cloud.firestore {
       allow update, delete: if isOrgOwner(orgId);
 
       // Users can be managed by organization admins.
-      // Users can view their own data.
-      // A user can create their own user document as part of joining an organization.
+      // A user can always view their own user document.
       match /users/{userId} {
-        allow read: if isOrgMember(orgId) && (getRole(orgId) == 'admin' || request.auth.uid == userId);
+        allow read: if request.auth.uid == userId || (isOrgMember(orgId) && getRole(orgId) == 'admin');
         allow create: if request.auth.uid == userId;
         allow update, delete: if isOrgMember(orgId) && getRole(orgId) == 'admin';
       }
