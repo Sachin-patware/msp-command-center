@@ -1,0 +1,69 @@
+{
+  "entities": {
+    "Organization": {
+      "title": "Organization",
+      "description": "Represents an MSP organization.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "The name of the organization." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of creation." },
+        "ownerId": { "type": "string", "description": "User ID of the owner." },
+        "currency": { "type": "string", "description": "Default currency for the organization (e.g., INR)." },
+        "timezone": { "type": "string", "description": "Timezone for the organization (e.g., Asia/Kolkata)." },
+        "plan": { "type": "string", "enum": ["free", "pro", "enterprise"], "description": "Subscription plan." }
+      },
+      "required": ["name", "ownerId", "createdAt"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Represents a user within an organization.",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string", "description": "User's display name." },
+        "email": { "type": "string", "format": "email", "description": "User's email address." },
+        "role": { "type": "string", "enum": ["admin", "finance", "it", "sales", "viewer"], "description": "User's role." },
+        "uid": { "type": "string", "description": "Firebase Authentication User ID." }
+      },
+      "required": ["email", "role", "uid"]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "Represents a client of the MSP.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "industry": { "type": "string" },
+        "mrr": { "type": "number", "description": "Monthly Recurring Revenue." },
+        "contractStart": { "type": "string", "format": "date-time" },
+        "contractEnd": { "type": "string", "format": "date-time" },
+        "primaryContact": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "email": { "type": "string", "format": "email" },
+            "phone": { "type": "string" }
+          }
+        },
+        "tags": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["name", "mrr"]
+    }
+  },
+  "auth": {
+    "providers": ["password", "google.com"]
+  },
+  "firestore": {
+    "/organizations/{orgId}": {
+      "schema": { "$ref": "#/entities/Organization" },
+      "description": "Stores organization-level details."
+    },
+    "/organizations/{orgId}/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores users belonging to an organization."
+    },
+    "/organizations/{orgId}/clients/{clientId}": {
+      "schema": { "$ref": "#/entities/Client" },
+      "description": "Stores the clients for an organization."
+    }
+  }
+}
