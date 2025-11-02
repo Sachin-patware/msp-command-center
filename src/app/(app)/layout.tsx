@@ -7,42 +7,9 @@ import Nav from "@/components/nav";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Bell, LogOut, Search, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useAuth, useUser, useCollection } from "@/firebase";
+import { useAuth, useUser } from "@/firebase";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
-
-function useUserOrganization() {
-  const { user, loading: userLoading } = useUser();
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const { data: orgs, loading: orgsLoading } = useCollection('organizations', {
-    constraints: user ? [
-      // This is a placeholder constraint. Firestore requires at least one constraint
-      // for collection group queries if rules are based on it.
-      // We are finding the org by iterating, not via a where clause.
-    ] : undefined
-  });
-
-  useEffect(() => {
-    if (userLoading || orgsLoading) return;
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    const foundOrg = orgs.find((org: any) => org.ownerId === user.uid);
-    // A more robust solution might check a `members` subcollection
-    
-    if (foundOrg) {
-      setOrgId(foundOrg.id);
-    }
-    setLoading(false);
-  }, [user, orgs, userLoading, orgsLoading]);
-
-  return { orgId, loading: userLoading || loading };
-}
+import { useEffect } from "react";
 
 export default function AppLayout({
   children,
@@ -51,17 +18,13 @@ export default function AppLayout({
 }) {
   const { auth } = useAuth();
   const { user, loading: userLoading, error } = useUser();
-  const { orgId, loading: orgLoading } = useUserOrganization();
   const router = useRouter();
 
   useEffect(() => {
     if (!userLoading && !user) {
       router.push('/login');
     }
-    if (!userLoading && user && !orgLoading && !orgId) {
-      router.push('/onboarding');
-    }
-  }, [user, userLoading, orgId, orgLoading, router]);
+  }, [user, userLoading, router]);
 
   const handleSignOut = async () => {
     if (auth) {
@@ -70,9 +33,7 @@ export default function AppLayout({
     }
   };
 
-  const isLoading = userLoading || orgLoading;
-
-  if (isLoading || !user || !orgId) {
+  if (userLoading || !user) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -130,42 +91,3 @@ export default function AppLayout({
     </SidebarProvider>
   );
 }
-
-// This is a new context provider to pass orgId to child components
-export const OrgContext = React.createContext<{ orgId: string | null }>({ orgId: null });
-
-function AppLayoutWithOrgContext({ children }: { children: React.ReactNode }) {
-  const { orgId } = useUserOrganization();
-  return <OrgContext.Provider value={{ orgId }}>{children}</OrgContext.Provider>
-}
-
-// We need to wrap the export with the context provider
-const AppLayoutWithProvider = ({children}: {children: React.ReactNode}) => (
-    <AppLayout>
-      <AppLayoutWithOrgContext>
-          {children}
-      </AppLayoutWithOrgContext>
-    </AppLayout>
-);
-
-// We have to export default the wrapped layout
-// export default AppLayoutWithProvider;
-// The above line causes issues, so let's try a different pattern.
-// Let's modify the original component to use the context.
-function AppLayoutWrapper({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-   const { orgId } = useUserOrganization();
-
-   // The main layout already handles loading and redirection.
-   // We just need to provide the orgId to the rest of the app.
-   return (
-     <OrgContext.Provider value={{ orgId }}>
-        {children}
-     </OrgContext.Provider>
-   )
-}
-
-export { OrgContext };

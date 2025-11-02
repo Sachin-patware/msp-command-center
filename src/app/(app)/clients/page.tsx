@@ -13,10 +13,11 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useAuth, useCollection, useFirestore } from "@/firebase";
-import { addDoc, collection } from "firebase/firestore";
+import { addDoc, collection, doc, setDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useContext } from "react";
-import { OrgContext } from "../layout";
+import { useState } from "react";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 
 const clientSchema = z.object({
@@ -32,9 +33,10 @@ type ClientFormData = z.infer<typeof clientSchema>;
 
 const AddClientForm = ({ onSave }: { onSave: () => void }) => {
     const { db } = useFirestore();
-    const { orgId } = useContext(OrgContext);
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    // Hardcode orgId for now as we removed the onboarding flow
+    const orgId = "test-org"; 
 
     const form = useForm<ClientFormData>({
         resolver: zodResolver(clientSchema),
@@ -49,7 +51,7 @@ const AddClientForm = ({ onSave }: { onSave: () => void }) => {
 
     async function onSubmit(data: ClientFormData) {
         if (!db || !orgId) {
-            toast({ variant: "destructive", title: "Error", description: "Organization not found."});
+            toast({ variant: "destructive", title: "Error", description: "Database not available."});
             return;
         };
         setIsSubmitting(true);
@@ -64,25 +66,43 @@ const AddClientForm = ({ onSave }: { onSave: () => void }) => {
             },
             contractStart: new Date().toISOString(),
         };
+        
+        const clientsRef = collection(db, `organizations/${orgId}/clients`);
 
-        try {
-            await addDoc(collection(db, `organizations/${orgId}/clients`), newClient);
-            toast({
-                title: "Client Added",
-                description: `${data.name} has been successfully added.`,
+        // First, ensure the parent organization document exists.
+        const orgRef = doc(db, 'organizations', orgId);
+        setDoc(orgRef, { name: 'Test Organization', ownerId: 'temp-owner' }, { merge: true })
+            .then(() => {
+                // Now, add the client document.
+                addDoc(clientsRef, newClient)
+                .then(() => {
+                    toast({
+                        title: "Client Added",
+                        description: `${data.name} has been successfully added.`,
+                    });
+                    form.reset();
+                    onSave();
+                })
+                .catch(async (serverError) => {
+                    const permissionError = new FirestorePermissionError({
+                        path: clientsRef.path,
+                        operation: 'create',
+                        requestResourceData: newClient,
+                    });
+                    errorEmitter.emit('permission-error', permissionError);
+                });
+            })
+            .catch(async (serverError) => {
+                 const permissionError = new FirestorePermissionError({
+                    path: orgRef.path,
+                    operation: 'create',
+                    requestResourceData: { name: 'Test Organization', ownerId: 'temp-owner' },
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            })
+            .finally(() => {
+                setIsSubmitting(false);
             });
-            form.reset();
-            onSave();
-        } catch (error: any) {
-             console.error("Error adding client: ", error);
-             toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Could not add client. Check console for details.",
-            });
-        } finally {
-            setIsSubmitting(false);
-        }
     }
 
 
@@ -147,16 +167,10 @@ const AddClientForm = ({ onSave }: { onSave: () => void }) => {
 
 
 export default function ClientsPage() {
-    const { orgId } = useContext(OrgContext);
+    const orgId = "test-org";
     const { data: clients, loading, error } = useCollection(orgId ? `organizations/${orgId}/clients` : undefined);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     
-    // We can't render the page without an orgId
-    if (!orgId && !loading) {
-        return <div className="text-destructive">Error: No organization ID found.</div>
-    }
-
-
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
