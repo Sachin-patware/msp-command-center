@@ -6,6 +6,7 @@ import { FirebaseProvider } from './provider';
 import type { FirebaseApp } from 'firebase/app';
 import type { Auth } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
+import { Loader2 } from 'lucide-react';
 
 type FirebaseInstances = {
   app: FirebaseApp;
@@ -19,13 +20,18 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Firebase should only be initialized on the client.
     if (typeof window !== 'undefined') {
-      setFirebase(initializeFirebase());
+      const instances = initializeFirebase();
+      setFirebase(instances);
     }
   }, []);
 
   if (!firebase) {
     // You can return a loader here if you'd like.
-    return null;
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return <FirebaseProvider {...firebase}>{children}</FirebaseProvider>;

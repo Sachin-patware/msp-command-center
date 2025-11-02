@@ -15,13 +15,12 @@ let db: Firestore;
 function initializeFirebase(): { app: FirebaseApp; auth: Auth; db: Firestore; } {
   if (getApps().length === 0) {
     app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
   } else {
     app = getApp();
-    auth = getAuth(app);
-    db = getFirestore(app);
   }
+  auth = getAuth(app);
+  db = getFirestore(app);
+  
   return { app, auth, db };
 }
 
