@@ -12,8 +12,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useAuth, useCollection, useFirestore, useUser } from "@/firebase";
-import { addDoc, collection, doc, writeBatch } from "firebase/firestore";
+import { useFirestore, useUser, useCollection } from "@/firebase";
+import { collection, doc, writeBatch } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { errorEmitter } from "@/firebase/error-emitter";
@@ -50,7 +50,7 @@ const AddClientForm = ({ onSave }: { onSave: () => void }) => {
         }
     });
 
-    async function onSubmit(data: ClientFormData) {
+    function onSubmit(data: ClientFormData) {
         if (!db || !user) {
             toast({ variant: "destructive", title: "Error", description: "Database not available or user not logged in."});
             return;
@@ -70,17 +70,14 @@ const AddClientForm = ({ onSave }: { onSave: () => void }) => {
 
         const batch = writeBatch(db);
 
-        // 1. Create the organization document
         const orgRef = doc(db, 'organizations', orgId);
         const orgData = { name: 'Test Organization', ownerId: user.uid, createdAt: new Date().toISOString(), currency: 'INR', plan: 'pro' };
         batch.set(orgRef, orgData, { merge: true });
 
-        // 2. Create the user document within the organization
         const userRef = doc(db, `organizations/${orgId}/users`, user.uid);
         const userData = { email: user.email, displayName: user.displayName, role: 'admin', uid: user.uid };
         batch.set(userRef, userData, { merge: true });
 
-        // 3. Create the new client document
         const clientRef = doc(collection(db, `organizations/${orgId}/clients`));
         batch.set(clientRef, newClient);
         
@@ -94,11 +91,10 @@ const AddClientForm = ({ onSave }: { onSave: () => void }) => {
                 onSave();
             })
             .catch(async (serverError) => {
-                console.error("Error adding client: ", serverError);
                  const permissionError = new FirestorePermissionError({
-                    path: `organizations/${orgId}/clients`,
+                    path: `organizations/${orgId}`,
                     operation: 'create',
-                    requestResourceData: newClient,
+                    requestResourceData: { org: orgData, user: userData, client: newClient },
                 });
                 errorEmitter.emit('permission-error', permissionError);
             })
