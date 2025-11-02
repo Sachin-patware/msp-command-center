@@ -1,6 +1,7 @@
 'use client'
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState, useEffect, useRef } from 'react';
+import { useFormStatus } from 'react-dom';
 import { getQuote, type FormState } from './actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -8,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Lightbulb, Loader2 } from 'lucide-react';
-import { useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 const initialState: FormState = {
@@ -26,7 +26,7 @@ function SubmitButton() {
 }
 
 export function QuoteGeneratorForm() {
-  const [state, formAction] = useFormState(getQuote, initialState);
+  const [state, formAction] = useActionState(getQuote, initialState);
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
 
