@@ -40,16 +40,8 @@ const AddClientForm = () => (
 
 
 export default function ClientsPage() {
-    // Note: To connect to a real collection, update the 'orgId' to a valid one.
-    // const { data: clients, loading, error } = useCollection('organizations/test-org/clients');
-    const { data: clients, loading, error } = useCollection('clients'); // Using top-level for now.
-
-    const clientsMock = [
-        { id: "1", name: "Innovate Co", industry: "Tech", mrr: 250000, contractEnd: "2025-01-15", primaryContact: { name: "Jane Doe" } },
-        { id: "2", name: "HealthWell", industry: "Healthcare", mrr: 120000, contractEnd: "2024-11-30", primaryContact: { name: "John Smith" } },
-        { id: "3", name: "RetailRight", industry: "E-commerce", mrr: 85000, contractEnd: "2025-06-01", primaryContact: { name: "Peter Jones" } },
-    ];
-
+    // Note: Using a hardcoded 'test-org' for now. This should be dynamic in a real app.
+    const { data: clients, loading, error } = useCollection('organizations/test-org/clients');
 
     return (
         <div className="space-y-6">
@@ -111,15 +103,15 @@ export default function ClientsPage() {
                                 </TableRow>
                             )}
                             {error && (
-                                <TableRow><TableCell colSpan={6} className="text-center text-destructive">Error loading clients.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="text-center text-destructive">Error loading clients. Check Firestore security rules and collection path.</TableCell></TableRow>
                             )}
-                            {!loading && clientsMock.map(client => (
+                            {!loading && clients && clients.map((client: any) => (
                                 <TableRow key={client.id}>
                                     <TableCell className="font-medium">{client.name}</TableCell>
                                     <TableCell className="hidden md:table-cell">{client.industry}</TableCell>
-                                    <TableCell>₹{client.mrr.toLocaleString('en-IN')}</TableCell>
-                                    <TableCell className="hidden lg:table-cell">{client.contractEnd}</TableCell>
-                                    <TableCell>{client.primaryContact.name}</TableCell>
+                                    <TableCell>₹{client.mrr?.toLocaleString('en-IN')}</TableCell>
+                                    <TableCell className="hidden lg:table-cell">{client.contractEnd ? new Date(client.contractEnd).toLocaleDateString() : 'N/A'}</TableCell>
+                                    <TableCell>{client.primaryContact?.name}</TableCell>
                                     <TableCell>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
@@ -139,6 +131,13 @@ export default function ClientsPage() {
                                     </TableCell>
                                 </TableRow>
                             ))}
+                             {!loading && (!clients || clients.length === 0) && !error && (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center">
+                                        No clients found.
+                                    </TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
                     </Table>
                 </CardContent>
