@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { firebaseConfig } from "@/firebase/config";
+import Link from "next/link";
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -102,6 +103,12 @@ export default function LoginPage() {
               Sign In
             </Button>
           </form>
+          <div className="mt-4 text-center text-sm">
+            Don't have an account?{' '}
+            <Link href="/signup" className="underline">
+              Sign up
+            </Link>
+          </div>
           <div className="relative my-4">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
