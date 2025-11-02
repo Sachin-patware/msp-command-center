@@ -10,6 +10,7 @@ import { GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup } from 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import { firebaseConfig } from "@/firebase/config";
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -56,6 +57,11 @@ export default function LoginPage() {
     }
     setGoogleLoading(true);
     const provider = new GoogleAuthProvider();
+    // Explicitly setting the authDomain can resolve some "unauthorized-domain" issues.
+    provider.setCustomParameters({
+      authDomain: firebaseConfig.authDomain
+    });
+    
     try {
       await signInWithPopup(auth, provider);
       router.push('/dashboard');
