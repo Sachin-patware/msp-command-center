@@ -3,51 +3,153 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { MoreHorizontal, PlusCircle, Search } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Search, Loader2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useCollection } from "@/firebase";
-import { Loader2 } from "lucide-react";
-import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
+import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useAuth, useCollection, useFirestore } from "@/firebase";
+import { addDoc, collection } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
-const AddClientForm = () => (
-    <div className="grid gap-4 py-4">
-        <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">Name</Label>
-            <Input id="name" placeholder="Acme Inc." className="col-span-3" />
-        </div>
-        <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="industry" className="text-right">Industry</Label>
-            <Input id="industry" placeholder="SaaS" className="col-span-3" />
-        </div>
-        <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="mrr" className="text-right">MRR (₹)</Label>
-            <Input id="mrr" type="number" placeholder="150000" className="col-span-3" />
-        </div>
-        <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="contact-name" className="text-right">Contact Name</Label>
-            <Input id="contact-name" placeholder="John Doe" className="col-span-3" />
-        </div>
-         <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="contact-email" className="text-right">Contact Email</Label>
-            <Input id="contact-email" type="email" placeholder="john@acme.com" className="col-span-3" />
-        </div>
-    </div>
-)
+const clientSchema = z.object({
+    name: z.string().min(1, "Client name is required"),
+    industry: z.string().min(1, "Industry is required"),
+    mrr: z.coerce.number().positive("MRR must be a positive number"),
+    contactName: z.string().optional(),
+    contactEmail: z.string().email("Invalid email address").optional(),
+});
+
+type ClientFormData = z.infer<typeof clientSchema>;
+
+
+const AddClientForm = ({ onSave }: { onSave: () => void }) => {
+    const { db } = useFirestore();
+    const { toast } = useToast();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const form = useForm<ClientFormData>({
+        resolver: zodResolver(clientSchema),
+        defaultValues: {
+            name: '',
+            industry: '',
+            mrr: 0,
+            contactName: '',
+            contactEmail: '',
+        }
+    });
+
+    async function onSubmit(data: ClientFormData) {
+        if (!db) return;
+        setIsSubmitting(true);
+
+        const newClient = {
+            name: data.name,
+            industry: data.industry,
+            mrr: data.mrr,
+            primaryContact: {
+                name: data.contactName,
+                email: data.contactEmail,
+            },
+            contractStart: new Date().toISOString(),
+        };
+
+        try {
+            await addDoc(collection(db, 'organizations/test-org/clients'), newClient);
+            toast({
+                title: "Client Added",
+                description: `${data.name} has been successfully added.`,
+            });
+            form.reset();
+            onSave();
+        } catch (error: any) {
+             console.error("Error adding client: ", error);
+             toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Could not add client. Check console for details.",
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
+
+    return (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
+                <FormField control={form.control} name="name" render={({ field }) => (
+                    <FormItem className="grid grid-cols-4 items-center gap-4">
+                        <FormLabel className="text-right">Name</FormLabel>
+                        <FormControl>
+                            <Input placeholder="Acme Inc." className="col-span-3" {...field} />
+                        </FormControl>
+                        <FormMessage className="col-span-4" />
+                    </FormItem>
+                )} />
+                 <FormField control={form.control} name="industry" render={({ field }) => (
+                    <FormItem className="grid grid-cols-4 items-center gap-4">
+                        <FormLabel className="text-right">Industry</FormLabel>
+                        <FormControl>
+                            <Input placeholder="SaaS" className="col-span-3" {...field} />
+                        </FormControl>
+                         <FormMessage className="col-span-4" />
+                    </FormItem>
+                )} />
+                 <FormField control={form.control} name="mrr" render={({ field }) => (
+                    <FormItem className="grid grid-cols-4 items-center gap-4">
+                        <FormLabel className="text-right">MRR (₹)</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="150000" className="col-span-3" {...field} />
+                        </FormControl>
+                         <FormMessage className="col-span-4" />
+                    </FormItem>
+                )} />
+                 <FormField control={form.control} name="contactName" render={({ field }) => (
+                    <FormItem className="grid grid-cols-4 items-center gap-4">
+                        <FormLabel className="text-right">Contact Name</FormLabel>
+                        <FormControl>
+                            <Input placeholder="John Doe" className="col-span-3" {...field} />
+                        </FormControl>
+                         <FormMessage className="col-span-4" />
+                    </FormItem>
+                )} />
+                 <FormField control={form.control} name="contactEmail" render={({ field }) => (
+                    <FormItem className="grid grid-cols-4 items-center gap-4">
+                        <FormLabel className="text-right">Contact Email</FormLabel>
+                        <FormControl>
+                            <Input type="email" placeholder="john@acme.com" className="col-span-3" {...field} />
+                        </FormControl>
+                         <FormMessage className="col-span-4" />
+                    </FormItem>
+                )} />
+                <SheetFooter className="mt-4">
+                    <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Save Client
+                    </Button>
+                </SheetFooter>
+            </form>
+        </Form>
+    )
+}
 
 
 export default function ClientsPage() {
     // Note: Using a hardcoded 'test-org' for now. This should be dynamic in a real app.
     const { data: clients, loading, error } = useCollection('organizations/test-org/clients');
+    const [isSheetOpen, setIsSheetOpen] = useState(false);
 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h1 className="text-3xl font-bold tracking-tight">Clients</h1>
-                <Sheet>
+                <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                     <SheetTrigger asChild>
                         <Button>
                             <PlusCircle className="mr-2 h-4 w-4" />
@@ -59,10 +161,7 @@ export default function ClientsPage() {
                             <SheetTitle>Add a New Client</SheetTitle>
                             <SheetDescription>Fill in the details below to add a new client to your roster.</SheetDescription>
                         </SheetHeader>
-                        <AddClientForm />
-                        <SheetFooter>
-                            <Button type="submit">Save Client</Button>
-                        </SheetFooter>
+                        <AddClientForm onSave={() => setIsSheetOpen(false)} />
                     </SheetContent>
                 </Sheet>
             </div>
