@@ -1,21 +1,32 @@
 'use client';
 
-import { ReactNode, useMemo } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { initializeFirebase } from '.';
 import { FirebaseProvider } from './provider';
+import type { FirebaseApp } from 'firebase/app';
+import type { Auth } from 'firebase/auth';
+import type { Firestore } from 'firebase/firestore';
+
+type FirebaseInstances = {
+  app: FirebaseApp;
+  auth: Auth;
+  db: Firestore;
+};
 
 export function FirebaseClientProvider({ children }: { children: ReactNode }) {
-  const firebaseApp = useMemo(() => {
+  const [firebase, setFirebase] = useState<FirebaseInstances | null>(null);
+
+  useEffect(() => {
+    // Firebase should only be initialized on the client.
     if (typeof window !== 'undefined') {
-      return initializeFirebase();
+      setFirebase(initializeFirebase());
     }
-    return null;
   }, []);
 
-  if (!firebaseApp) {
-    // Return a loading state or null on the server
-    return null; 
+  if (!firebase) {
+    // You can return a loader here if you'd like.
+    return null;
   }
 
-  return <FirebaseProvider {...firebaseApp}>{children}</FirebaseProvider>;
+  return <FirebaseProvider {...firebase}>{children}</FirebaseProvider>;
 }
