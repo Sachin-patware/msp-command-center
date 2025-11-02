@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useFirestore, useUser, useCollection } from "@/firebase";
-import { collection, doc, writeBatch } from "firebase/firestore";
+import { collection, doc, writeBatch, setDoc, addDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { errorEmitter } from "@/firebase/error-emitter";
@@ -50,7 +50,7 @@ const AddClientForm = ({ onSave }: { onSave: () => void }) => {
         }
     });
 
-    function onSubmit(data: ClientFormData) {
+    async function onSubmit(data: ClientFormData) {
         if (!db || !user) {
             toast({ variant: "destructive", title: "Error", description: "Database not available or user not logged in."});
             return;
@@ -68,39 +68,41 @@ const AddClientForm = ({ onSave }: { onSave: () => void }) => {
             contractStart: new Date().toISOString(),
         };
 
-        const batch = writeBatch(db);
-
         const orgRef = doc(db, 'organizations', orgId);
         const orgData = { name: 'Test Organization', ownerId: user.uid, createdAt: new Date().toISOString(), currency: 'INR', plan: 'pro' };
-        batch.set(orgRef, orgData, { merge: true });
-
+        
         const userRef = doc(db, `organizations/${orgId}/users`, user.uid);
         const userData = { email: user.email, displayName: user.displayName, role: 'admin', uid: user.uid };
-        batch.set(userRef, userData, { merge: true });
-
-        const clientRef = doc(collection(db, `organizations/${orgId}/clients`));
-        batch.set(clientRef, newClient);
         
-        batch.commit()
-            .then(() => {
-                toast({
-                    title: "Client Added",
-                    description: `${data.name} has been successfully added.`,
-                });
-                form.reset();
-                onSave();
-            })
-            .catch(async (serverError) => {
-                 const permissionError = new FirestorePermissionError({
-                    path: `organizations/${orgId}`,
-                    operation: 'create',
-                    requestResourceData: { org: orgData, user: userData, client: newClient },
-                });
-                errorEmitter.emit('permission-error', permissionError);
-            })
-            .finally(() => {
-                setIsSubmitting(false);
+        const clientRef = collection(db, `organizations/${orgId}/clients`);
+        
+        try {
+            // Batch 1: Create Org and User role
+            const orgBatch = writeBatch(db);
+            orgBatch.set(orgRef, orgData, { merge: true });
+            orgBatch.set(userRef, userData, { merge: true });
+            await orgBatch.commit();
+            
+            // Batch 2: Create Client
+            await addDoc(clientRef, newClient);
+
+            toast({
+                title: "Client Added",
+                description: `${data.name} has been successfully added.`,
             });
+            form.reset();
+            onSave();
+
+        } catch(serverError) {
+             const permissionError = new FirestorePermissionError({
+                path: `organizations/${orgId}/clients`,
+                operation: 'create',
+                requestResourceData: { client: newClient },
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        } finally {
+            setIsSubmitting(false);
+        }
     }
 
 
